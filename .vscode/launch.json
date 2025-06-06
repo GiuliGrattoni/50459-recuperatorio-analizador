@@ -2,11 +2,11 @@
   "version": "2.0.0",
   "configurations": [
     {
-      "name": "Debug ANTLR4 grammar",
+      "name": "Debug analizador.g4",
       "type": "antlr-debug",
       "request": "launch",
-      "input": "input.js",
-      "grammar": "SimpleLang.g4",
+      "input": "input.txt",
+      "grammar": "analizador.g4",
       "printParseTree": true,
       "visualParseTree": true
     }

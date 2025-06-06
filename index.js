@@ -1,86 +1,54 @@
-import SimpleLangLexer from "./generated/SimpleLangLexer.js";
-import SimpleLangParser from "./generated/SimpleLangParser.js";
-import CustomSimpleLangVisitor from "./CustomSimpleLangVisitor.js";
-import antlr4, { CharStreams, CommonTokenStream } from "antlr4";
-import readline from 'readline';
+import antlr4 from 'antlr4';
+import { CharStreams, CommonTokenStream } from 'antlr4';
 import fs from 'fs';
 
+import analizadorLexer from './generated/analizadorLexer.js';
+import analizadorParser from './generated/analizadorParser.js';
+import CustomAnalizadorVisitor from './CustomAnalizadorVisitor.js';
+
 async function main() {
-    let input;
+  let input = '';
 
-    // Intento leer la entrada desde el archivo input - en forma sincrónica.
-    try {
-        input = fs.readFileSync('input.js', 'utf8');
-    } catch (err) {
-        // Si no es posible leer el archivo, solicitar la entrada del usuario por teclado
-        input = await leerCadena(); // Simula lectura síncrona
-        console.log(input);
-    }
+  try {
+    input = fs.readFileSync('input.txt', 'utf8');
+  } catch (err) {
+    console.error("No se pudo leer input.txt");
+    return;
+  }
 
-    // Proceso la entrada con el analizador para obtener el lexer
-    let inputStream = CharStreams.fromString(input);
-    let lexer = new SimpleLangLexer(inputStream);
-    
-    //Verificar si el lexer está generando tokens 
-    console.log("Verificando tokens generados por el lexer...");
-    const tokens = lexer.getAllTokens();
-    if (tokens.length === 0) {
-        console.error("No se generaron tokens. Verifica la entrada y la gramática.");
-        return;
-    }
+  // Crear lexer y tokens
+  const inputStream = CharStreams.fromString(input);
+  const lexer = new analizadorLexer(inputStream);
+  const tokens = new CommonTokenStream(lexer);
 
-    //Mostrar la tabla de tokens y lexemas
-    console.log("\nTabla de Tokens y Lexemas:");
-    console.log("--------------------------------------------------");
-    console.log("| Lexema         | Token                         |");
-    console.log("--------------------------------------------------");
+  // Mostrar tabla de tokens
+  const allTokens = lexer.getAllTokens();
+  console.log("Tabla de Tokens y Lexemas:");
+  console.log("--------------------------------------------------");
+  console.log("| Lexema         | Token                         |");
+  console.log("--------------------------------------------------");
+  allTokens.forEach(token => {
+    const name = analizadorLexer.symbolicNames[token.type] || `UNKNOWN (${token.type})`;
+    console.log(`| ${token.text.padEnd(14)} | ${name.padEnd(30)}|`);
+  });
+  console.log("--------------------------------------------------\n");
 
-    // Recorrer todos los tokens generados por el lexer
-    for (let token of tokens) {
-        // Obtener el nombre simbólico del token
-        const tokenType = SimpleLangLexer.symbolicNames[token.type] || `UNKNOWN (${token.type})`;
-        const lexema = token.text; // Obtener el lexema (texto del token)
-        console.log(`| ${lexema.padEnd(14)} | ${tokenType.padEnd(30)}|`);
-    }
-    console.log("--------------------------------------------------"); 
+  // Rehacer el lexer
+  const inputStream2 = CharStreams.fromString(input);
+  const lexer2 = new analizadorLexer(inputStream2);
+  const tokens2 = new CommonTokenStream(lexer2);
 
-    /* Vuelve a procesar la entrada, obtener el lexer, el código tokenizado y el parser 
-     * Es necesario volver a procesar la entrada porque la función getAllTokens() consume
-     * todos los tokens reconocidos y vacía el lexer. */
-    inputStream = CharStreams.fromString(input);
-    lexer = new SimpleLangLexer(inputStream);
-    let tokenStream = new CommonTokenStream(lexer);
-    let parser = new SimpleLangParser(tokenStream);
-    let tree = parser.prog();
+  // Crear parser y visitor
+  const parser = new analizadorParser(tokens2);
+  const tree = parser.command();
 
-    // Verificar si se produjeron errores sintácticos
-    if (parser.syntaxErrorsCount > 0) {
-        console.error("\nSe encontraron errores de sintaxis en la entrada.");
-    } else {
-        console.log("\nEntrada válida.");
-        const cadena_tree = tree.toStringTree(parser.ruleNames);
-        console.log(`Árbol de derivación: ${cadena_tree}`);
-
-        /* Utilizar un visitor para visitar los nodos que me interesan del árbol 
-         * e implementar la semántica que nos interesa.*/
-        const visitor = new CustomSimpleLangVisitor();
-        visitor.visit(tree);
-    }
+  if (parser.syntaxErrorsCount > 0) {
+    console.error("❌ Se encontraron errores de sintaxis.");
+  } else {
+    console.log("✅ Entrada válida. Interpretando...\n");
+    const visitor = new CustomAnalizadorVisitor();
+    visitor.visit(tree);
+  }
 }
 
-function leerCadena() {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-
-    return new Promise(resolve => {
-        rl.question("Ingrese una cadena: ", (answer) => {
-            rl.close();
-            resolve(answer);
-        });
-    });
-}
-
-// Ejecuta la función principal
 main();
